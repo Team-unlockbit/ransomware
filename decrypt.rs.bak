@@ -1,0 +1,47 @@
+use mysql::*;
+use mysql::prelude::*;
+use std::io::{self, Write};
+
+fn main() -> Result<()> {
+    // 사용자로부터 MySQL root 비밀번호를 입력받음
+    print!("Enter MySQL root password: ");
+    io::stdout().flush()?;
+    let mut password = String::new();
+    io::stdin().read_line(&mut password)?;
+    let password = password.trim();
+
+    // 사용자로부터 복호화할 테이블과 열 선택
+    print!("Enter table name (users/products): ");
+    io::stdout().flush()?;
+    let mut table_name = String::new();
+    io::stdin().read_line(&mut table_name)?;
+    let table_name = table_name.trim();
+
+    print!("Enter column name to decrypt: ");
+    io::stdout().flush()?;
+    let mut column_name = String::new();
+    io::stdin().read_line(&mut column_name)?;
+    let column_name = column_name.trim();
+
+    // MySQL 서버에 연결
+    let url = format!("mysql://root:{}@127.0.0.1:3306/example_db", password);
+    let pool = Pool::new(url)?;
+    let mut conn = pool.get_conn()?;
+
+    // 복호화된 데이터 가져오기 (여기서는 Base64 디코딩을 사용)
+    let id = 1;
+    let select_query = format!("SELECT {} FROM {} WHERE id = {}", column_name, table_name, id);
+    let result: Option<String> = conn.exec_first(select_query, ())?;
+
+    if let Some(encrypted_data) = result {
+        let decrypted_data = base64::decode(&encrypted_data).expect("Failed to decode Base64");
+        let decrypted_string = String::from_utf8(decrypted_data).expect("Failed to convert to UTF-8");
+
+        println!("Decrypted data: {}", decrypted_string);
+    } else {
+        println!("No data found to decrypt.");
+    }
+
+    Ok(())
+}
+
