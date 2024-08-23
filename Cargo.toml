@@ -10,3 +10,10 @@ aes = "0.8"            # AES 암호화 알고리즘을 제공하는 크레이트
 rand = "0.8"           # 무작위 난수 생성을 위한 크레이트
 hex = "0.4"            # 바이너리 데이터를 16진수 문자열로 인코딩하는 크레이트
 
+[[bin]]
+name = "encrypt"
+path = "src/encryptor_main.rs"
+
+[[bin]]
+name = "decrypt"
+path = "src/decryptor_main.rs"

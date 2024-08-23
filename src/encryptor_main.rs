@@ -1,3 +1,5 @@
+mod encryptor; // 암호화 모듈을 포함
+
 use mysql::*;
 use mysql::prelude::*;
 use std::io::{self, Write};
@@ -31,6 +33,10 @@ fn main() -> Result<(), mysql::Error> {
     let pool = Pool::new(opts)?;
     let mut conn = pool.get_conn()?;
 
+    // 암호화 모듈 초기화
+    let key = b"an example very very secret key."; // 32 bytes
+    let encryptor = encryptor::Encryptor::new(key);
+
     // 모든 테이블 이름 가져오기
     let tables: Vec<String> = conn.query("SHOW TABLES")?;
 
@@ -47,29 +53,30 @@ fn main() -> Result<(), mysql::Error> {
             },
         )?;
 
-        // 각 컬럼에 대해 업데이트 작업 수행
+        // 각 컬럼에 대해 데이터를 암호화하여 업데이트
         for (field, field_type) in &columns {
             if field == "id" {
                 continue; // id 컬럼은 건너뛰기
             }
 
-            // 컬럼 타입 변경 쿼리
-            let alter_query = format!("ALTER TABLE {} MODIFY {} VARCHAR(255)", table, field);
+            // 데이터베이스에서 데이터를 읽어와 암호화 후 업데이트
+            let select_query = format!("SELECT {} FROM {}", field, table);
+            let rows: Vec<String> = conn.query_map(select_query, |data: String| data)?;
 
-            // 타입 변경 쿼리 실행
-            conn.exec_drop(alter_query, ())?;
+            for data in rows {
+                let encrypted_data = encryptor.encrypt(&data);
+                let encrypted_hex = hex::encode(&encrypted_data);
 
-            // 컬럼 타입에 따른 업데이트 쿼리 작성 및 실행
-            let update_query = format!(
-                "UPDATE {} SET {} = CONCAT({}, '_qwer')",
-                table, field, field
-            );
+                let update_query = format!(
+                    "UPDATE {} SET {} = '{}' WHERE {} = '{}'",
+                    table, field, encrypted_hex, field, data
+                );
 
-            // 업데이트 쿼리 실행
-            conn.exec_drop(update_query, ())?;
+                conn.exec_drop(update_query, ())?;
+            }
         }
 
-        println!("테이블 {}의 모든 컬럼 데이터가 업데이트되었습니다.", table);
+        println!("테이블 {}의 모든 컬럼 데이터가 암호화되었습니다.", table);
     }
 
     Ok(())
