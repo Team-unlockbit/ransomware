@@ -39,3 +39,33 @@ impl RansomwareNotifier {
     }
 }
 
+pub struct DelReadme {
+    conn: PooledConn,
+}
+
+impl DelReadme {
+    pub fn new(user: &str, password: &str, url: &str, port: u16 , database: &str) -> Result<Self, mysql::Error> {
+        let opts = OptsBuilder::new()
+            .ip_or_hostname(Some(url))
+			.tcp_port(port)
+            .user(Some(user))
+            .pass(Some(password))
+            .db_name(Some(database));
+
+        let pool = Pool::new(opts)?;
+        let conn = pool.get_conn()?;
+        Ok(DelReadme { conn })
+    }
+//    pub fn new(opts: Opts) -> Result<Self, mysql::Error> {
+//        let pool = Pool::new(opts)?;
+//        let conn = pool.get_conn()?;
+//        Ok(DelReadme { conn })
+//    }
+
+    pub fn drop_table(&mut self, table_name: &str) -> Result<(), mysql::Error> {
+        let query = format!("DROP TABLE IF EXISTS {}", table_name);
+        self.conn.query_drop(query)?;
+        println!("Table '{}' has been dropped.", table_name);
+        Ok(())
+    }
+}
